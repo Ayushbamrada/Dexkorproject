@@ -6,6 +6,7 @@ import DashboardTeacher from "./pages/DashboardTeacher";
 import CreateCourseForm from "./pages/CreateCourseForm";
 import RegisterPage from "./pages/RegisterPage";
 import CourseDetail from "./pages/CourseDetails";
+import TeacherCourseDetails from "./pages/TeacherCourseDetails";
 
 function App() {
   return (
@@ -18,6 +19,8 @@ function App() {
          <Route path="/DashboardTeacher" element={<DashboardTeacher />} />
          <Route path="/register" element={<RegisterPage />} />
          <Route path="/course/:courseId" element={<CourseDetail />} />
+         <Route path="/teacher-dashboard/course/:courseId" element={<TeacherCourseDetails />} />
+
 
 
         {/* Add other login routes later */}

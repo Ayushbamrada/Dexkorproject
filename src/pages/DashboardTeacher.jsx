@@ -3,6 +3,7 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 import CreateCourseForm from './CreateCourseForm';
 import { generateThumbnail } from '../utils/generateThumbnails';
+import { Link } from 'react-router-dom';
 
 const DashboardTeacher = () => {
   const [courses, setCourses] = useState([]);
@@ -194,6 +195,13 @@ const DashboardTeacher = () => {
                         </ul>
                       </div>
                     )}
+
+                    {/* View Course Button */}
+                    <Link to={`/teacher-dashboard/course/${course._id}`}>
+                      <button className="mt-3 px-3 py-1 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">
+                        View Course
+                      </button>
+                    </Link>
                   </div>
                 ))}
               </div>
