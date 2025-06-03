@@ -2,15 +2,17 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const TeacherCourseDetails = () => {
+  const navigate = useNavigate()
   const { courseId } = useParams();
   const [course, setCourse] = useState(null);
 
   useEffect(() => {
     const fetchCourse = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/courses/${courseId}`);
+        const res = await axios.get(`http://localhost:5000/api/course/${courseId}`);
         setCourse(res.data);
       } catch (err) {
         console.error('Error fetching course:', err);
@@ -24,7 +26,13 @@ const TeacherCourseDetails = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Course: {course.title}</h1>
+      <div className=' flex items-center justify-between '>
+        <h1 className="text-2xl font-bold mb-4">Course: {course.title}</h1>
+        <button 
+          onClick={() => navigate(`/teacher-dashboard/course/edit/${courseId}`)}
+          className=' border rounded-md bg-blue-600 hover:bg-blue-500 text-white font-semibold p-2 px-4 flex items-center justify-center' 
+        >Edit Course</button>
+      </div>
 
       <div className="mb-6">
         <h2 className="text-xl font-semibold mb-2">Videos:</h2>

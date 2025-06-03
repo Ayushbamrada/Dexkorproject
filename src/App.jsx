@@ -7,6 +7,7 @@ import CreateCourseForm from "./pages/CreateCourseForm";
 import RegisterPage from "./pages/RegisterPage";
 import CourseDetail from "./pages/CourseDetails";
 import TeacherCourseDetails from "./pages/TeacherCourseDetails";
+import EditTeacherCourseForm from "./pages/EditTeacherCourse";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
          <Route path="/register" element={<RegisterPage />} />
          <Route path="/course/:courseId" element={<CourseDetail />} />
          <Route path="/teacher-dashboard/course/:courseId" element={<TeacherCourseDetails />} />
+         <Route path="/teacher-dashboard/course/edit/:courseId" element={<EditTeacherCourseForm />} />
 
 
 
