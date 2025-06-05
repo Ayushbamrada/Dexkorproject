@@ -1,4 +1,3 @@
-// Dashboard.js
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
@@ -13,21 +12,33 @@ const Dashboard = () => {
     const fetchCourses = async () => {
       try {
         const res = await axios.get('http://localhost:5000/api/all-courses');
+
         const coursesWithThumbnails = await Promise.all(
           res.data.map(async (course) => {
-            if (course.videos && course.videos.length > 0) {
-              const videoUrl = `http://localhost:5000${course.videos[0].videoUrl}`;
-              try {
-                const thumbnail = await generateThumbnail(videoUrl);
-                return { ...course, thumbnail };
-              } catch (error) {
-                console.error('Thumbnail generation error:', error);
-                return { ...course, thumbnail: null };
+            let firstVideoUrl = null;
+
+            // ✅ Updated logic to extract video URL from modules
+            if (Array.isArray(course.modules)) {
+              for (let mod of course.modules) {
+                if (mod.videos && mod.videos.length > 0 && mod.videos[0].videoUrl) {
+                  firstVideoUrl = `http://localhost:5000${mod.videos[0].videoUrl}`;
+                  break;
+                }
               }
             }
-            return { ...course, thumbnail: null };
+
+            try {
+              const thumbnail = firstVideoUrl
+                ? await generateThumbnail(firstVideoUrl)
+                : null;
+              return { ...course, thumbnail };
+            } catch (error) {
+              console.error('Thumbnail generation error:', error);
+              return { ...course, thumbnail: null };
+            }
           })
         );
+
         setCourses(coursesWithThumbnails);
       } catch (error) {
         console.error('Error fetching courses:', error);

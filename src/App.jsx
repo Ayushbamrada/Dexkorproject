@@ -8,6 +8,7 @@ import RegisterPage from "./pages/RegisterPage";
 import CourseDetail from "./pages/CourseDetails";
 import TeacherCourseDetails from "./pages/TeacherCourseDetails";
 import EditTeacherCourseForm from "./pages/EditTeacherCourse";
+import QuizPage from "./pages/QuizPage";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
          <Route path="/course/:courseId" element={<CourseDetail />} />
          <Route path="/teacher-dashboard/course/:courseId" element={<TeacherCourseDetails />} />
          <Route path="/teacher-dashboard/course/edit/:courseId" element={<EditTeacherCourseForm />} />
+         <Route path="/course/:courseId/module/:moduleId/quiz" element={<QuizPage />} />
 
 
 

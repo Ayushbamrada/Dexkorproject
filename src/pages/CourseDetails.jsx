@@ -99,23 +99,25 @@ const CourseDetail = () => {
                   const initialProgressSeconds = Math.floor((progressPercent / 100) * video.duration);
 
                   return (
-                    <div key={video._id} className="border p-4 rounded-lg">
+                    <div key={video._id} className="border p-3 rounded-md bg-gray-50">
+
                       <h3 className="text-xl font-semibold mb-2">
                         🎬 {video.title}
                       </h3>
 
                       <ProgressBar progress={progressPercent} />
-                      <div className="mt-3 aspect-video">
-                        <RestrictedVideoPlayer
-                          videoUrl={`http://localhost:5000${video.videoUrl}`}
-                          courseId={course._id}
-                          videoId={video._id}
-                          userId={userId}
-                          onProgressUpdate={handleProgressUpdate}
-                          initialProgressSeconds={initialProgressSeconds}
-                          videoDuration={video.duration}
-                        />
-                      </div>
+                      <div className="mt-3 w-50% max-w-md h-60 border rounded overflow-hidden">
+  <RestrictedVideoPlayer
+    videoUrl={`http://localhost:5000${video.videoUrl}`}
+    courseId={course._id}
+    videoId={video._id}
+    userId={userId}
+    onProgressUpdate={handleProgressUpdate}
+    initialProgressSeconds={initialProgressSeconds}
+    videoDuration={video.duration}
+  />
+</div>
+
 
                       {/* Assignment Upload */}
                       {video.assignment && (
