@@ -1,58 +1,75 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import ModuleForm from '../components/ModuleForm';
 
 const CreateCourseForm = ({ onSubmit, onCancel }) => {
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
-  const [videoSections, setVideoSections] = useState([
-    { title: '', file: null, documents: [] },
-  ]);
   const [submitting, setSubmitting] = useState(false);
+
+  const [modules, setModules] = useState([
+    {
+      moduleTitle: '',
+      moduleDescription: '',
+      videos: [{ title: '', file: null }],
+      documents: [],
+      assignment: null,
+      quiz: Array(5).fill({ question: '', options: ['', '', '', ''], correctAnswer: 0 }),
+    },
+  ]);
 
   const handleCourseTitleChange = (e) => setCourseTitle(e.target.value);
   const handleCourseDescriptionChange = (e) => setCourseDescription(e.target.value);
 
-  const handleVideoTitleChange = (index, value) => {
-    const updated = [...videoSections];
-    updated[index].title = value;
-    setVideoSections(updated);
+  const handleModuleChange = (index, updatedModule) => {
+    const updatedModules = [...modules];
+    updatedModules[index] = updatedModule;
+    setModules(updatedModules);
   };
 
-  const handleVideoFileChange = (index, file) => {
-    const updated = [...videoSections];
-    updated[index].file = file;
-    setVideoSections(updated);
+  const addModule = () => {
+    setModules([
+      ...modules,
+      {
+        moduleTitle: '',
+        moduleDescription: '',
+        videos: [{ title: '', file: null }],
+        documents: [],
+        assignment: null,
+        quiz: Array(5).fill({ question: '', options: ['', '', '', ''], correctAnswer: 0 }),
+      },
+    ]);
   };
 
-  const handleDocumentChange = (videoIndex, docIndex, file) => {
-    const updated = [...videoSections];
-    updated[videoIndex].documents[docIndex] = file;
-    setVideoSections(updated);
-  };
-
-  const addVideoSection = () => {
-    setVideoSections([...videoSections, { title: '', file: null, documents: [] }]);
-  };
-
-  const addDocumentToVideo = (videoIndex) => {
-    const updated = [...videoSections];
-    updated[videoIndex].documents.push(null);
-    setVideoSections(updated);
+  const removeModule = (index) => {
+    setModules(modules.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!courseTitle.trim() || !courseDescription.trim()) {
-      alert('Title and description are required.');
+      alert('Course title and description are required.');
       return;
     }
 
-    const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
+    for (const mod of modules) {
+      if (!mod.moduleTitle.trim() || !mod.moduleDescription.trim()) {
+        alert('All modules must have title and description.');
+        return;
+      }
+      for (const vid of mod.videos) {
+        if (!vid.title.trim() || !vid.file) {
+          alert('All videos must have title and file.');
+          return;
+        }
+      }
+    }
 
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
     if (!token || !userId) {
-      alert("You must be logged in.");
+      alert('You must be logged in.');
       return;
     }
 
@@ -61,138 +78,120 @@ const CreateCourseForm = ({ onSubmit, onCancel }) => {
     formData.append('description', courseDescription);
     formData.append('teacherId', userId);
 
-    videoSections.forEach((video, index) => {
-      formData.append('videoTitles', video.title);
-      formData.append('videos', video.file);
-      video.documents.forEach(doc => {
-        formData.append(`documents`, doc);
+    modules.forEach((mod, modIndex) => {
+      formData.append(`modules[${modIndex}][moduleTitle]`, mod.moduleTitle);
+      formData.append(`modules[${modIndex}][moduleDescription]`, mod.moduleDescription);
+
+      mod.videos.forEach((vid, vidIndex) => {
+        formData.append(`modules[${modIndex}][videos][${vidIndex}][title]`, vid.title);
+        formData.append(`modules[${modIndex}][videos][${vidIndex}][file]`, vid.file);
       });
+
+      mod.documents.forEach((doc, docIndex) => {
+        formData.append(`modules[${modIndex}][documents][${docIndex}]`, doc);
+      });
+
+      if (mod.assignment) {
+        formData.append(`modules[${modIndex}][assignment]`, mod.assignment);
+      }
+
+      formData.append(`modules[${modIndex}][quiz]`, JSON.stringify(mod.quiz));
     });
 
     try {
       setSubmitting(true);
       const res = await axios.post('http://localhost:5000/api/create-course', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+          // Don't manually set Content-Type for multipart/form-data
         },
       });
+
       alert('✅ Course created successfully!');
       onSubmit(res.data.course);
 
       // Reset form
       setCourseTitle('');
       setCourseDescription('');
-      setVideoSections([{ title: '', file: null, documents: [] }]);
+      setModules([
+        {
+          moduleTitle: '',
+          moduleDescription: '',
+          videos: [{ title: '', file: null }],
+          documents: [],
+          assignment: null,
+          quiz: Array(5).fill({ question: '', options: ['', '', '', ''], correctAnswer: 0 }),
+        },
+      ]);
     } catch (error) {
-      alert('❌ Failed to create course.');
       console.error(error);
+      alert(`❌ Failed to create course: ${error?.response?.data?.message || error.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 bg-white shadow rounded-lg max-w-3xl mx-auto">
-      <h2 className="text-3xl font-bold mb-6">Create a New Course</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="p-4 max-w-3xl mx-auto bg-white rounded-lg shadow border text-sm"
+    >
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">📚 Create Course</h2>
 
-      {/* Course Title */}
-      <label className="block mb-2 font-medium">Course Title</label>
-      <input
-        type="text"
-        value={courseTitle}
-        onChange={handleCourseTitleChange}
-        className="w-full p-3 mb-4 border rounded-lg"
-        placeholder="Enter course title"
-        required
-      />
+      <div className="grid gap-2 mb-4">
+        <label className="text-gray-600 font-medium">Course Title</label>
+        <input
+          type="text"
+          value={courseTitle}
+          onChange={handleCourseTitleChange}
+          className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+          required
+        />
 
-      {/* Course Description */}
-      <label className="block mb-2 font-medium">Course Description</label>
-      <textarea
-        value={courseDescription}
-        onChange={handleCourseDescriptionChange}
-        className="w-full p-3 mb-6 border rounded-lg"
-        rows="4"
-        placeholder="Describe your course"
-        required
-      />
+        <label className="text-gray-600 font-medium mt-2">Course Description</label>
+        <textarea
+          value={courseDescription}
+          onChange={handleCourseDescriptionChange}
+          className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+          rows="2"
+          required
+        />
+      </div>
 
-      {/* Video Sections */}
-      {videoSections.map((section, vIndex) => (
-        <div key={vIndex} className="mb-10 border p-4 rounded-lg bg-gray-50">
-          <h3 className="text-xl font-semibold mb-4">🎥 Video {vIndex + 1}</h3>
-
-          {/* Video Title */}
-          <input
-            type="text"
-            value={section.title}
-            onChange={(e) => handleVideoTitleChange(vIndex, e.target.value)}
-            className="w-full p-2 mb-3 border rounded"
-            placeholder="Video title"
-            required
+      <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+        {modules.map((mod, i) => (
+          <ModuleForm
+            key={i}
+            moduleIndex={i}
+            moduleData={mod}
+            onModuleChange={handleModuleChange}
+            onRemoveModule={removeModule}
           />
+        ))}
+      </div>
 
-          {/* Upload Video */}
-          <div className="mb-4">
-            <label className="inline-block mb-2 font-medium">Upload Video</label>
-            <label className="block cursor-pointer w-full p-3 border-2 border-dashed border-blue-400 rounded text-center text-blue-700 hover:bg-blue-50">
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => handleVideoFileChange(vIndex, e.target.files[0])}
-                className="hidden"
-                required
-              />
-              {section.file ? section.file.name : 'Click to choose video file'}
-            </label>
-          </div>
+      <div className="mt-4 text-right">
+        <button
+          type="button"
+          onClick={addModule}
+          className="text-xs px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          + Add Module
+        </button>
+      </div>
 
-          {/* Related Documents */}
-          <h4 className="font-medium mb-2">📄 Documents for this video</h4>
-          {section.documents.map((doc, docIndex) => (
-            <div key={docIndex} className="mb-3">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
-                onChange={(e) => handleDocumentChange(vIndex, docIndex, e.target.files[0])}
-                className="w-full p-2 border rounded"
-              />
-              {doc && <p className="text-sm mt-1 text-gray-600">{doc.name}</p>}
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={() => addDocumentToVideo(vIndex)}
-            className="text-sm text-blue-600 underline"
-          >
-            + Add Document
-          </button>
-        </div>
-      ))}
-
-      {/* Add Another Video */}
-      <button
-        type="button"
-        onClick={addVideoSection}
-        className="mb-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        + Add Another Video
-      </button>
-
-      {/* Submit / Cancel */}
-      <div className="flex gap-4">
+      <div className="flex justify-end gap-2 mt-4">
         <button
           type="submit"
           disabled={submitting}
-          className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+          className="text-xs px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
         >
           {submitting ? 'Submitting...' : 'Submit'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="bg-gray-400 text-white px-6 py-2 rounded hover:bg-gray-500"
+          className="text-xs px-4 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
         >
           Cancel
         </button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import RestrictedVideoPlayer from '../components/RestrictedVideoPlayer';
 import Navbar from '../components/Navbar';
@@ -7,9 +7,12 @@ import ProgressBar from '../components/ProgressBar';
 
 const CourseDetail = () => {
   const { courseId } = useParams();
+  const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [progressMap, setProgressMap] = useState({}); // { videoId: progress% }
+  const [progressMap, setProgressMap] = useState({});
+  const [uploadedAssignments, setUploadedAssignments] = useState({});
+  const [expandedModules, setExpandedModules] = useState({});
   const userId = localStorage.getItem('userId');
   const token = localStorage.getItem('token');
 
@@ -27,141 +30,174 @@ const CourseDetail = () => {
       }
     };
 
-    // const fetchProgress = async () => {
-    //   try {
-    //     const res = await axios.get(`http://localhost:5000/api/progress/${courseId}`, {
-    //       headers: { Authorization: `Bearer ${token}` },
-    //     });
+    fetchCourse();
+  }, [courseId, token]);
 
-    //     const map = {};
-    //     res.data.forEach((item) => {
-    //       if (item.videoDuration > 0) {
-    //         map[item.videoId] = Math.floor((item.watchedSeconds / item.videoDuration) * 100);
-    //       } else {
-    //         map[item.videoId] = 0;
-    //       }
-    //     });
-    //     setProgressMap(map);
-    //   } catch (err) {
-    //     console.error('Error fetching progress:', err);
-    //   }
-    // };
-
-      // fetchCourse();
-      // fetchProgress();
-      // }, [courseId, token]);
-      fetchCourse();
-      // fetchProgress();
-    }, [courseId, token]);
-  
-    const handleProgressUpdate = (videoId, progress) => {
-      setProgressMap((prev) => ({ ...prev, [videoId]: progress }));
-    };
-  
-    if (loading) return <div className="p-6 text-center text-xl">⏳ Loading...</div>;
-    if (!course) return <div className="p-6 text-center text-red-500">❌ Course not found</div>;
-  
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar activeTab="CourseDetail" />
-  
-        <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          {/* Course Title */}
-          <div className="mb-10">
-            <h1 className="text-4xl font-bold text-gray-800">{course.title}</h1>
-            <p className="text-gray-600 mt-2">Watch course videos and access related documents below.</p>
-          </div>
-  
-          {/* Videos with documents side by side */}
-          <div className="space-y-12">
-            {course.videos.map((video, index) => {
-              // Calculate initial progress in seconds for the video
-              const progressPercent = progressMap[video._id] || 0;
-              const initialProgressSeconds = Math.floor((progressPercent / 100) * video.duration);
-  
-              return (
-                <div
-                  key={video._id}
-                  className="bg-white shadow-md rounded-xl border border-gray-200 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6"
-                >
-                  {/* Left: Video and progress bar */}
-                  <div className="lg:col-span-2">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-3">
-                      {index + 1}. {video.title}
-                    </h3>
-  
-                    {/* Progress Bar */}
-                    <ProgressBar progress={progressPercent} />
-  
-                    <div className="w-full aspect-video rounded overflow-hidden">
-                      <RestrictedVideoPlayer
-                        videoUrl={`http://localhost:5000${video.videoUrl}`}
-                        courseId={course._id}
-                        videoId={video._id}
-                        userId={userId}
-                        onProgressUpdate={handleProgressUpdate}
-                        initialProgressSeconds={initialProgressSeconds}
-                        videoDuration={video.duration} // Pass duration for correct progress calc inside player
-                      />
-                    </div>
-                  </div>
-  
-                  {/* Right: Related Documents */}
-                  <div>
-                    <h4 className="text-lg font-medium text-green-700 mb-2">📄 Related Documents</h4>
-                    {course.documents && course.documents.length > 0 ? (
-                      <div className="space-y-6">
-                        {course.documents.map((doc, docIndex) => {
-                          const fileUrl = `http://localhost:5000${encodeURI(doc.fileUrl)}`;
-                          const fileName = doc.name || decodeURIComponent(doc.fileUrl.split('/').pop());
-                          const isPdf = fileName.toLowerCase().endsWith('.pdf');
-  
-                          return (
-                            <div key={docIndex} className="border border-gray-300 rounded p-3">
-                              <p className="font-semibold text-gray-700 mb-2">{fileName}</p>
-  
-                              {/* Embed PDF Viewer or fallback link */}
-                              {isPdf ? (
-                                <iframe
-                                  src={fileUrl}
-                                  title={fileName}
-                                  className="w-full h-96 border"
-                                />
-                              ) : (
-                                // Use Google Docs Viewer for other formats
-                                <iframe
-                                  src={`https://docs.google.com/gview?url=${fileUrl}&embedded=true`}
-                                  title={fileName}
-                                  className="w-full h-96 border"
-                                />
-                              )}
-  
-                              {/* Optional Download Button */}
-                              <div className="mt-2">
-                                <a
-                                  href={fileUrl}
-                                  download
-                                  className="inline-block bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 transition"
-                                >
-                                  ⬇ Download
-                                </a>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-  
-                    ) : (
-                      <p className="text-gray-500 italic">No documents available.</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
+  const handleProgressUpdate = (videoId, progress) => {
+    setProgressMap((prev) => ({ ...prev, [videoId]: progress }));
   };
-  
-  export default CourseDetail;
+
+  const handleFileChange = (videoIndex, file) => {
+    setUploadedAssignments((prev) => ({
+      ...prev,
+      [videoIndex]: file,
+    }));
+  };
+
+  const handleAssignmentUpload = async (videoIndex) => {
+    const formData = new FormData();
+    formData.append('assignmentFile', uploadedAssignments[videoIndex]);
+    formData.append('studentId', userId);
+    formData.append('courseId', courseId);
+    formData.append('videoIndex', videoIndex);
+
+    try {
+      await axios.post('http://localhost:5000/api/submit-assignment', formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert('✅ Assignment submitted successfully!');
+    } catch (error) {
+      console.error('Error uploading assignment', error);
+      alert('❌ Failed to upload assignment.');
+    }
+  };
+
+  const toggleModule = (index) => {
+    setExpandedModules((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
+  const goToQuiz = (moduleId) => {
+    navigate(`/course/${courseId}/module/${moduleId}/quiz`);
+  };
+
+  if (loading) return <div className="p-6 text-center text-xl">⏳ Loading...</div>;
+  if (!course) return <div className="p-6 text-center text-red-500">❌ Course not found</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar activeTab="CourseDetail" />
+      <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-bold text-gray-800 mb-8">{course.title}</h1>
+
+        {course.modules?.map((module, moduleIndex) => (
+          <div key={module._id} className="mb-8 border rounded-lg shadow bg-white">
+            <button
+              onClick={() => toggleModule(moduleIndex)}
+              className="w-full text-left px-6 py-4 font-semibold text-lg bg-gray-100 hover:bg-gray-200 transition rounded-t-lg"
+            >
+              {expandedModules[moduleIndex] ? '🔽' : '▶'} Module {moduleIndex + 1}: {module.title}
+            </button>
+
+            {expandedModules[moduleIndex] && (
+              <div className="p-6 space-y-6">
+                {/* Videos Section */}
+                {module.videos.map((video, videoIndex) => {
+                  const progressPercent = progressMap[video._id] || 0;
+                  const initialProgressSeconds = Math.floor((progressPercent / 100) * video.duration);
+
+                  return (
+                    <div key={video._id} className="border p-4 rounded-lg">
+                      <h3 className="text-xl font-semibold mb-2">
+                        🎬 {video.title}
+                      </h3>
+
+                      <ProgressBar progress={progressPercent} />
+                      <div className="mt-3 aspect-video">
+                        <RestrictedVideoPlayer
+                          videoUrl={`http://localhost:5000${video.videoUrl}`}
+                          courseId={course._id}
+                          videoId={video._id}
+                          userId={userId}
+                          onProgressUpdate={handleProgressUpdate}
+                          initialProgressSeconds={initialProgressSeconds}
+                          videoDuration={video.duration}
+                        />
+                      </div>
+
+                      {/* Assignment Upload */}
+                      {video.assignment && (
+                        <div className="mt-4">
+                          <p className="font-medium mb-2">📥 Assignment: {video.assignment.name}</p>
+                          <iframe
+                            src={`http://localhost:5000${video.assignment.fileUrl}`}
+                            className="w-full h-64 border"
+                            title={video.assignment.name}
+                            frameBorder="0"
+                          ></iframe>
+
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            onChange={(e) => handleFileChange(`${moduleIndex}-${videoIndex}`, e.target.files[0])}
+                            className="mt-3 block"
+                          />
+                          <button
+                            onClick={() => handleAssignmentUpload(`${moduleIndex}-${videoIndex}`)}
+                            className="mt-2 bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
+                          >
+                            Upload Assignment
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Documents */}
+                <div>
+                  <h4 className="text-lg font-semibold text-green-800">📄 Module Documents</h4>
+                  {module.documents?.length > 0 ? (
+                    module.documents.map((doc, idx) => {
+                      const fileUrl = `http://localhost:5000${encodeURI(doc.fileUrl)}`;
+                      const fileName = doc.name || decodeURIComponent(doc.fileUrl.split('/').pop());
+
+                      return (
+                        <div key={idx} className="border p-3 mt-2 rounded">
+                          <p className="font-medium">{fileName}</p>
+                          <iframe
+                            src={fileUrl}
+                            className="w-full h-64 border"
+                            title={fileName}
+                            frameBorder="0"
+                          ></iframe>
+
+                          <div className="mt-2 flex gap-3">
+                            <a href={fileUrl} target="_blank" className="text-blue-600 hover:underline">
+                              🔍 View Fullscreen
+                            </a>
+                            <a href={fileUrl} download className="text-green-600 hover:underline">
+                              ⬇ Download
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-gray-500 italic">No documents available.</p>
+                  )}
+                </div>
+
+                {/* Quiz Button */}
+                {module.quiz && module.quiz.questions?.length > 0 && (
+                  <div className="mt-6">
+                    <button
+                      onClick={() => goToQuiz(module._id)}
+                      className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700 transition"
+                    >
+                      🧠 Take Quiz
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default CourseDetail;

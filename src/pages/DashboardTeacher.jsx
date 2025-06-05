@@ -19,17 +19,25 @@ const DashboardTeacher = () => {
 
       const coursesWithThumbnails = await Promise.all(
         res.data.map(async (course) => {
-          if (course.videos && course.videos.length > 0) {
-            const videoUrl = `http://localhost:5000${course.videos[0].videoUrl}`;
-            try {
-              const thumbnail = await generateThumbnail(videoUrl);
-              return { ...course, thumbnail };
-            } catch (err) {
-              console.error('Error generating thumbnail for course:', course.title, err);
-              return { ...course, thumbnail: null };
+          let firstVideoUrl = null;
+
+          // find the first available video in the module structure
+          for (let mod of course.modules) {
+            if (mod.videos.length > 0 && mod.videos[0].videoUrl) {
+              firstVideoUrl = `http://localhost:5000${mod.videos[0].videoUrl}`;
+              break;
             }
           }
-          return { ...course, thumbnail: null };
+
+          try {
+            const thumbnail = firstVideoUrl
+              ? await generateThumbnail(firstVideoUrl)
+              : null;
+            return { ...course, thumbnail };
+          } catch (err) {
+            console.error('Error generating thumbnail:', err);
+            return { ...course, thumbnail: null };
+          }
         })
       );
 
@@ -46,64 +54,8 @@ const DashboardTeacher = () => {
   }, []);
 
   const handleCreateCourse = (newCourse) => {
-    setCourses([...courses, newCourse]);
+    setCourses((prev) => [...prev, newCourse]);
     setShowForm(false);
-  };
-
-  const handleAddVideo = async (courseId) => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'video/*';
-    fileInput.click();
-
-    fileInput.onchange = async () => {
-      const file = fileInput.files[0];
-      const title = prompt('Enter video title:');
-      if (!file || !title) return;
-
-      try {
-        const thumbnailBase64 = await generateThumbnail(file);
-
-        const formData = new FormData();
-        formData.append('video', file);
-        formData.append('title', title);
-        formData.append('thumbnail', thumbnailBase64);
-
-        const res = await axios.post(
-          `http://localhost:5000/api/course/${courseId}/add-video`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data',
-            },
-          }
-        );
-        const updated = res.data.updatedCourse;
-        setCourses((prev) =>
-          prev.map((c) => (c._id === updated._id ? updated : c))
-        );
-      } catch (err) {
-        console.error('Video upload error:', err);
-      }
-    };
-  };
-
-  const handleDeleteVideo = async (courseId, videoId) => {
-    try {
-      const res = await axios.delete(
-        `http://localhost:5000/api/course/${courseId}/video/${videoId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const updated = res.data.updatedCourse;
-      setCourses((prev) =>
-        prev.map((c) => (c._id === updated._id ? updated : c))
-      );
-    } catch (err) {
-      console.error('Error deleting video:', err);
-    }
   };
 
   return (
@@ -125,16 +77,13 @@ const DashboardTeacher = () => {
             </button>
 
             <h2 className="text-2xl font-semibold mt-6 mb-4">Your Courses</h2>
+
             {loading ? (
               <p>Loading courses...</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {courses.map((course) => (
-                  <div
-                    key={course._id}
-                    className="bg-white p-4 rounded shadow border relative"
-                  >
-                    {/* Thumbnail Section */}
+                  <div key={course._id} className="bg-white p-4 rounded shadow border relative">
                     <div className="relative mb-2 h-40 w-full">
                       {course.thumbnail ? (
                         <img
@@ -151,49 +100,27 @@ const DashboardTeacher = () => {
 
                     <h3 className="text-lg font-bold">{course.title}</h3>
 
-                    {/* Videos List */}
-                    <div className="mt-2">
-                      <h4 className="font-semibold">Videos</h4>
-                      <ul className="list-disc list-inside text-sm text-gray-700">
-                        {course.videos.map((vid) => (
-                          <li key={vid._id} className="flex justify-between items-center">
-                            {vid.title}
-                            <button
-                              onClick={() => handleDeleteVideo(course._id, vid._id)}
-                              className="text-xs text-red-500 ml-2"
-                            >
-                              Delete
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                      <button
-                        onClick={() => handleAddVideo(course._id)}
-                        className="text-blue-600 text-sm mt-1 underline"
-                      >
-                        + Add Video
-                      </button>
-                    </div>
-
-                    {/* Documents List */}
-                    {course.documents.length > 0 && (
-                      <div className="mt-4">
-                        <h4 className="font-semibold">Documents</h4>
-                        <ul className="list-disc list-inside text-sm text-gray-700">
-                          {course.documents.map((doc, i) => (
-                            <li key={i}>
-                              <a
-                                href={`http://localhost:5000${doc.fileUrl}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-600"
-                              >
-                                {doc.name}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                    {/* Module-wise Documents Display */}
+                    {course.modules.map((mod, i) =>
+                      mod.documents.length > 0 ? (
+                        <div key={i} className="mt-4">
+                          <h4 className="font-semibold">Documents in {mod.moduleTitle}</h4>
+                          <ul className="list-disc list-inside text-sm text-gray-700">
+                            {mod.documents.map((doc, j) => (
+                              <li key={j}>
+                                <a
+                                  href={`http://localhost:5000${doc.fileUrl}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600"
+                                >
+                                  {doc.name}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null
                     )}
 
                     {/* View Course Button */}
